@@ -4,17 +4,22 @@ on:
   repository_dispatch:
     types: [validate_pr]
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   validate:
     runs-on: windows-latest
 
     steps:
       - name: Print Received Payload
+        shell: pwsh
         run: |
-          echo "Branch Name: ${{ github.event.client_payload.branch }}"
-          echo "Commit ID: ${{ github.event.client_payload.commit_id }}"
-          echo "PR Link: ${{ github.event.client_payload.pr_link }}"
-          echo "Repo Name: ${{ github.event.client_payload.repo_name }}"
+          Write-Host "Branch Name: ${{ github.event.client_payload.branch }}"
+          Write-Host "Commit ID: ${{ github.event.client_payload.commit_id }}"
+          Write-Host "PR Link: ${{ github.event.client_payload.pr_link }}"
+          Write-Host "Repo Name: ${{ github.event.client_payload.repo_name }}"
 
       - name: Trigger Downstream Workflow
         shell: pwsh
@@ -22,12 +27,15 @@ jobs:
           $token = "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"
 
           $headers = @{
-              Authorization = "token $token"
+              Authorization = "Bearer $token"
               Accept        = "application/vnd.github+json"
           }
 
+          $repo = "${{ github.repository }}"
+          $ref  = "${{ github.ref_name }}"
+
           $body = @{
-              ref = "main"
+              ref = $ref
               inputs = @{
                   branch     = "${{ github.event.client_payload.branch }}"
                   commit_id  = "${{ github.event.client_payload.commit_id }}"
@@ -37,9 +45,8 @@ jobs:
           } | ConvertTo-Json -Depth 5
 
           Invoke-RestMethod `
-            -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DemoQualityGate/actions/workflows/downstreamJob.yml/dispatches" `
+            -Uri "https://api.github.com/repos/$repo/actions/workflows/downstreamJob.yml/dispatches" `
             -Method Post `
             -Headers $headers `
             -Body $body `
             -ContentType "application/json"
-
