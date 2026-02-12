@@ -1,0 +1,24 @@
+name: External Trigger Validation
+
+on:
+  repository_dispatch:
+    types: [validate_pr]
+
+jobs:
+  validate:
+    runs-on: windows-latest
+
+    steps:
+      - name: Print Received Payload
+        run: |
+          echo "Branch Name: ${{ github.event.client_payload.branch }}"
+          echo "Commit ID: ${{ github.event.client_payload.commit_id }}"
+          echo "PR Link: ${{ github.event.client_payload.pr_link }}"
+          echo "Repo Name: ${{ github.event.client_payload.repo_name }}"
+
+      - name: Simple Validation
+        run: |
+          if [ -z "${{ github.event.client_payload.branch }}" ]; then
+            echo "Branch is empty!"
+            exit 1
+          fi
