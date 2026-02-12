@@ -16,9 +16,4 @@ jobs:
           echo "PR Link: ${{ github.event.client_payload.pr_link }}"
           echo "Repo Name: ${{ github.event.client_payload.repo_name }}"
 
-      - name: Simple Validation
-        run: |
-          if [ -z "${{ github.event.client_payload.branch }}" ]; then
-            echo "Branch is empty!"
-            exit 1
-          fi
+     
