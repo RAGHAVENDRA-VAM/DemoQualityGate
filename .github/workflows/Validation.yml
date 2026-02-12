@@ -16,4 +16,30 @@ jobs:
           echo "PR Link: ${{ github.event.client_payload.pr_link }}"
           echo "Repo Name: ${{ github.event.client_payload.repo_name }}"
 
-     
+      - name: Trigger Downstream Workflow
+        shell: pwsh
+        run: |
+          $token = "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"
+
+          $headers = @{
+              Authorization = "token $token"
+              Accept        = "application/vnd.github+json"
+          }
+
+          $body = @{
+              ref = "main"
+              inputs = @{
+                  branch     = "${{ github.event.client_payload.branch }}"
+                  commit_id  = "${{ github.event.client_payload.commit_id }}"
+                  pr_link    = "${{ github.event.client_payload.pr_link }}"
+                  repo_name  = "${{ github.event.client_payload.repo_name }}"
+              }
+          } | ConvertTo-Json -Depth 5
+
+          Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DemoQualityGate/actions/workflows/downstreamJob.yml/dispatches" `
+            -Method Post `
+            -Headers $headers `
+            -Body $body `
+            -ContentType "application/json"
+
