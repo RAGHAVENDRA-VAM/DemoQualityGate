@@ -45,7 +45,7 @@ jobs:
           } | ConvertTo-Json -Depth 5
 
           Invoke-RestMethod `
-            -Uri "https://api.github.com/repos/$repo/actions/workflows/downstreamJob.yml/dispatches" `
+            -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DownStreamJob-QG/actions/workflows/downstreamJob.yml/dispatches" `
             -Method Post `
             -Headers $headers `
             -Body $body `
