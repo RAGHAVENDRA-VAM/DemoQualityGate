@@ -50,70 +50,87 @@ jobs:
 
           Write-Host "Payload validation successful"
 
-      # -------------------------------------------------
-      # Trigger Downstream Workflow
-      # -------------------------------------------------
-      - name: Trigger Downstream Workflow
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.DOWNSTREAM_GITHUB_TOKEN }}
-        run: |
+     - name: Trigger Downstream Workflow
+  shell: pwsh
+  env:
+    GITHUB_TOKEN: ${{ secrets.DOWNSTREAM_GITHUB_TOKEN }}
+  run: |
 
-          Write-Host "Triggering downstream workflow..."
+    Write-Host "Triggering downstream workflow..."
 
-          $headers = @{
-              Authorization = "Bearer $env:GITHUB_TOKEN"
-              Accept        = "application/vnd.github+json"
-          }
+    $headers = @{
+        Authorization = "Bearer $env:GITHUB_TOKEN"
+        Accept        = "application/vnd.github+json"
+    }
 
-          # Handle empty PR URL
-          $prUrl = "${{ github.event.client_payload.pr_link }}"
+    # -------------------------------------------------
+    # Handle empty PR URL
+    # -------------------------------------------------
+    $prUrl = "${{ github.event.client_payload.pr_link }}"
 
-          if ([string]::IsNullOrWhiteSpace($prUrl)) {
-              $prUrl = "unknown"
-          }
+    if ([string]::IsNullOrWhiteSpace($prUrl)) {
+        $prUrl = "unknown"
+    }
 
-          # Build workflow dispatch payload
-          $body = @{
-              ref = "main"
+    # -------------------------------------------------
+    # FIX REPOSITORY SLUG
+    # -------------------------------------------------
+    $repoName = "${{ github.event.client_payload.repo_name }}"
 
-              inputs = @{
+    Write-Host ""
+    Write-Host "Original Repo Name : $repoName"
 
-                  PR_REPOSITORY = "${{ github.event.client_payload.repo_name }}"
+    # Remove hyphens if present
+    $repoName = $repoName -replace "-", ""
 
-                  PR_BRANCH = "${{ github.event.client_payload.branch }}"
+    Write-Host "Normalized Repo Name : $repoName"
+    Write-Host ""
 
-                  PR_COMMIT = "${{ github.event.client_payload.commit_id }}"
+    # -------------------------------------------------
+    # Build workflow dispatch payload
+    # -------------------------------------------------
+    $body = @{
+        ref = "main"
 
-                  PR_URL = $prUrl
-              }
+        inputs = @{
 
-          } | ConvertTo-Json -Depth 5
+            PR_REPOSITORY = $repoName
 
-          Write-Host "========== Dispatch Payload =========="
-          Write-Host $body
+            PR_BRANCH = "${{ github.event.client_payload.branch }}"
 
-          try {
+            PR_COMMIT = "${{ github.event.client_payload.commit_id }}"
 
-              Invoke-RestMethod `
-                -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DownStreamJob-QG/actions/workflows/downstreamJob.yml/dispatches" `
-                -Method Post `
-                -Headers $headers `
-                -Body $body `
-                -ContentType "application/json"
+            PR_URL = $prUrl
+        }
 
-              Write-Host "Downstream workflow triggered successfully"
+    } | ConvertTo-Json -Depth 5
 
-          }
-          catch {
+    Write-Host "========== Dispatch Payload =========="
+    Write-Host $body
 
-              Write-Host "========== GitHub Dispatch Failed =========="
+    try {
 
-              Write-Host $_.Exception.Message
+        Invoke-RestMethod `
+          -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DownStreamJob-QG/actions/workflows/downstreamJob.yml/dispatches" `
+          -Method Post `
+          -Headers $headers `
+          -Body $body `
+          -ContentType "application/json"
 
-              if ($_.ErrorDetails.Message) {
-                  Write-Host $_.ErrorDetails.Message
-              }
+        Write-Host ""
+        Write-Host "Downstream workflow triggered successfully"
 
-              throw
-          }
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "========== GitHub Dispatch Failed =========="
+
+        Write-Host $_.Exception.Message
+
+        if ($_.ErrorDetails.Message) {
+            Write-Host $_.ErrorDetails.Message
+        }
+
+        throw
+    }
