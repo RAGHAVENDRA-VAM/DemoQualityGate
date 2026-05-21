@@ -9,40 +9,85 @@ permissions:
   contents: read
 
 jobs:
+
   validate:
     runs-on: windows-latest
 
     steps:
+
+      # -------------------------------------------------
+      # Print Incoming Payload
+      # -------------------------------------------------
       - name: Print Received Payload
         shell: pwsh
         run: |
-          Write-Host "Branch Name: ${{ github.event.client_payload.branch }}"
-          Write-Host "Commit ID: ${{ github.event.client_payload.commit_id }}"
-          Write-Host "PR Link: ${{ github.event.client_payload.pr_link }}"
-          Write-Host "Repo Name: ${{ github.event.client_payload.repo_name }}"
 
-      - name: Trigger Downstream Workflow
+          Write-Host "========== Incoming Payload =========="
+
+          Write-Host "Branch Name : ${{ github.event.client_payload.branch }}"
+          Write-Host "Commit ID   : ${{ github.event.client_payload.commit_id }}"
+          Write-Host "PR Link     : ${{ github.event.client_payload.pr_link }}"
+          Write-Host "Repo Name   : ${{ github.event.client_payload.repo_name }}"
+
+      # -------------------------------------------------
+      # Validate Payload
+      # -------------------------------------------------
+      - name: Validate Payload
         shell: pwsh
         run: |
-          $token = "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"
+
+          if (-not "${{ github.event.client_payload.branch }}") {
+              throw "Branch value missing"
+          }
+
+          if (-not "${{ github.event.client_payload.commit_id }}") {
+              throw "Commit ID missing"
+          }
+
+          if (-not "${{ github.event.client_payload.pr_link }}") {
+              throw "PR URL missing"
+          }
+
+          if (-not "${{ github.event.client_payload.repo_name }}") {
+              throw "Repository name missing"
+          }
+
+          Write-Host "Payload validation successful"
+
+      # -------------------------------------------------
+      # Trigger Downstream Workflow
+      # -------------------------------------------------
+      - name: Trigger Downstream Workflow
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.DOWNSTREAM_GITHUB_TOKEN }}
+        run: |
+
+          Write-Host "Triggering downstream workflow..."
 
           $headers = @{
-              Authorization = "Bearer $token"
+              Authorization = "Bearer $env:GITHUB_TOKEN"
               Accept        = "application/vnd.github+json"
           }
 
-          $repo = "${{ github.repository }}"
-          $ref  = "${{ github.ref_name }}"
-
           $body = @{
-              ref = $ref
+              ref = "main"
+
               inputs = @{
-                  branch     = "${{ github.event.client_payload.branch }}"
-                  commit_id  = "${{ github.event.client_payload.commit_id }}"
-                  pr_link    = "${{ github.event.client_payload.pr_link }}"
-                  repo_name  = "${{ github.event.client_payload.repo_name }}"
+
+                  PR_REPOSITORY = "${{ github.event.client_payload.repo_name }}"
+
+                  PR_BRANCH = "${{ github.event.client_payload.branch }}"
+
+                  PR_COMMIT = "${{ github.event.client_payload.commit_id }}"
+
+                  PR_URL = "${{ github.event.client_payload.pr_link }}"
               }
+
           } | ConvertTo-Json -Depth 5
+
+          Write-Host "Dispatch Payload:"
+          Write-Host $body
 
           Invoke-RestMethod `
             -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DownStreamJob-QG/actions/workflows/downstreamJob.yml/dispatches" `
@@ -50,3 +95,5 @@ jobs:
             -Headers $headers `
             -Body $body `
             -ContentType "application/json"
+
+          Write-Host "Downstream workflow triggered successfully"
