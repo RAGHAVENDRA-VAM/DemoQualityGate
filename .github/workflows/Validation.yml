@@ -66,14 +66,14 @@ jobs:
               Accept        = "application/vnd.github+json"
           }
 
-          # Handle empty PR URL safely
+          # Handle empty PR URL
           $prUrl = "${{ github.event.client_payload.pr_link }}"
 
           if ([string]::IsNullOrWhiteSpace($prUrl)) {
               $prUrl = "unknown"
           }
 
-          # Build dispatch payload
+          # Build workflow dispatch payload
           $body = @{
               ref = "main"
 
@@ -107,20 +107,12 @@ jobs:
           }
           catch {
 
-              Write-Host "GitHub Dispatch Failed"
+              Write-Host "========== GitHub Dispatch Failed =========="
 
-              if ($_.Exception.Response -ne $null) {
+              Write-Host $_.Exception.Message
 
-                  $reader = New-Object System.IO.StreamReader(
-                      $_.Exception.Response.GetResponseStream()
-                  )
-
-                  $reader.BaseStream.Position = 0
-                  $reader.DiscardBufferedData()
-
-                  $responseBody = $reader.ReadToEnd()
-
-                  Write-Host $responseBody
+              if ($_.ErrorDetails.Message) {
+                  Write-Host $_.ErrorDetails.Message
               }
 
               throw
