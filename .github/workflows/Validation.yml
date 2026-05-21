@@ -50,87 +50,90 @@ jobs:
 
           Write-Host "Payload validation successful"
 
-     - name: Trigger Downstream Workflow
-  shell: pwsh
-  env:
-    GITHUB_TOKEN: ${{ secrets.DOWNSTREAM_GITHUB_TOKEN }}
-  run: |
+      # -------------------------------------------------
+      # Trigger Downstream Workflow
+      # -------------------------------------------------
+      - name: Trigger Downstream Workflow
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.DOWNSTREAM_GITHUB_TOKEN }}
+        run: |
 
-    Write-Host "Triggering downstream workflow..."
+          Write-Host "Triggering downstream workflow..."
 
-    $headers = @{
-        Authorization = "Bearer $env:GITHUB_TOKEN"
-        Accept        = "application/vnd.github+json"
-    }
+          $headers = @{
+              Authorization = "Bearer $env:GITHUB_TOKEN"
+              Accept        = "application/vnd.github+json"
+          }
 
-    # -------------------------------------------------
-    # Handle empty PR URL
-    # -------------------------------------------------
-    $prUrl = "${{ github.event.client_payload.pr_link }}"
+          # -------------------------------------------------
+          # Handle empty PR URL
+          # -------------------------------------------------
+          $prUrl = "${{ github.event.client_payload.pr_link }}"
 
-    if ([string]::IsNullOrWhiteSpace($prUrl)) {
-        $prUrl = "unknown"
-    }
+          if ([string]::IsNullOrWhiteSpace($prUrl)) {
+              $prUrl = "unknown"
+          }
 
-    # -------------------------------------------------
-    # FIX REPOSITORY SLUG
-    # -------------------------------------------------
-    $repoName = "${{ github.event.client_payload.repo_name }}"
+          # -------------------------------------------------
+          # Normalize Bitbucket Repository Slug
+          # -------------------------------------------------
+          $repoName = "${{ github.event.client_payload.repo_name }}"
 
-    Write-Host ""
-    Write-Host "Original Repo Name : $repoName"
+          Write-Host ""
+          Write-Host "Original Repo Name : $repoName"
 
-    # Remove hyphens if present
-    $repoName = $repoName -replace "-", ""
+          # Convert billing-center -> billingcenter
+          $repoName = $repoName -replace "-", ""
 
-    Write-Host "Normalized Repo Name : $repoName"
-    Write-Host ""
+          Write-Host "Normalized Repo Name : $repoName"
+          Write-Host ""
 
-    # -------------------------------------------------
-    # Build workflow dispatch payload
-    # -------------------------------------------------
-    $body = @{
-        ref = "main"
+          # -------------------------------------------------
+          # Build workflow dispatch payload
+          # -------------------------------------------------
+          $body = @{
+              ref = "main"
 
-        inputs = @{
+              inputs = @{
 
-            PR_REPOSITORY = $repoName
+                  PR_REPOSITORY = $repoName
 
-            PR_BRANCH = "${{ github.event.client_payload.branch }}"
+                  PR_BRANCH = "${{ github.event.client_payload.branch }}"
 
-            PR_COMMIT = "${{ github.event.client_payload.commit_id }}"
+                  PR_COMMIT = "${{ github.event.client_payload.commit_id }}"
 
-            PR_URL = $prUrl
-        }
+                  PR_URL = $prUrl
+              }
 
-    } | ConvertTo-Json -Depth 5
+          } | ConvertTo-Json -Depth 5
 
-    Write-Host "========== Dispatch Payload =========="
-    Write-Host $body
+          Write-Host "========== Dispatch Payload =========="
+          Write-Host $body
 
-    try {
+          try {
 
-        Invoke-RestMethod `
-          -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DownStreamJob-QG/actions/workflows/downstreamJob.yml/dispatches" `
-          -Method Post `
-          -Headers $headers `
-          -Body $body `
-          -ContentType "application/json"
+              Invoke-RestMethod `
+                -Uri "https://api.github.com/repos/RAGHAVENDRA-VAM/DownStreamJob-QG/actions/workflows/downstreamJob.yml/dispatches" `
+                -Method Post `
+                -Headers $headers `
+                -Body $body `
+                -ContentType "application/json"
 
-        Write-Host ""
-        Write-Host "Downstream workflow triggered successfully"
+              Write-Host ""
+              Write-Host "Downstream workflow triggered successfully"
 
-    }
-    catch {
+          }
+          catch {
 
-        Write-Host ""
-        Write-Host "========== GitHub Dispatch Failed =========="
+              Write-Host ""
+              Write-Host "========== GitHub Dispatch Failed =========="
 
-        Write-Host $_.Exception.Message
+              Write-Host $_.Exception.Message
 
-        if ($_.ErrorDetails.Message) {
-            Write-Host $_.ErrorDetails.Message
-        }
+              if ($_.ErrorDetails.Message) {
+                  Write-Host $_.ErrorDetails.Message
+              }
 
-        throw
-    }
+              throw
+          }
